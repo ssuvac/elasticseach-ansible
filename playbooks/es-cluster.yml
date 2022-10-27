@@ -13,4 +13,3 @@
      - { role: kibana-no-user, tags: kibana-no-user }
      - { role: kibana-with-user, tags: kibana-with-user }
      - { role: test, tags: test }
-
