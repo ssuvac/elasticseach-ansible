@@ -1,1 +1,1 @@
-# elasticseach-ansible
+# elasticsearch-ansible

@@ -1,0 +1,6 @@
+---
+# tasks file for kibana-install
+- name: Install the package "kibana"
+  ansible.builtin.apt:
+    name: kibana
+  when: inventory_hostname in groups['es-cluster-master']

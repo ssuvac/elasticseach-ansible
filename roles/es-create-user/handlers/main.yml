@@ -1,0 +1,13 @@
+---
+# handlers file for es-create-user
+- name: restart ES on master
+  ansible.builtin.service:
+    name: elasticsearch
+    state: restarted
+  when: inventory_hostname in groups['es-cluster-master']
+
+- name: restart ES on secondary
+  ansible.builtin.service:
+    name: elasticsearch
+    state: restarted
+  when: inventory_hostname in groups['es-cluster-replicas']

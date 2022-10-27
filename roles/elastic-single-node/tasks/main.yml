@@ -1,0 +1,8 @@
+---
+# tasks file for elastic-single-node
+- name: Modify elasticsearch.yml for single node cluster
+  ansible.builtin.template:
+    src: templates/elasticsearch.yml.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+  notify: 
+     - restart ES

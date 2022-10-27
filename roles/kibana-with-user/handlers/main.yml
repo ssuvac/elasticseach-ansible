@@ -1,0 +1,7 @@
+---
+# handlers file for kibana-with-user
+- name: restart kibana on master
+  ansible.builtin.service:
+    name: kibana
+    state: restarted
+  when: inventory_hostname in groups['es-cluster-master']

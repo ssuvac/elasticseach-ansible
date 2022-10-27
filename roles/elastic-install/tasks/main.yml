@@ -1,0 +1,30 @@
+- name: install gnupg
+  ansible.builtin.apt:
+   name: gnupg
+
+- name: Import elasticsearch key
+  shell: wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+
+- name: Install the package "apt-transport-https"
+  ansible.builtin.apt:
+    name: apt-transport-https
+
+- name: Install the package "default-jdk"
+  ansible.builtin.apt:
+    name: default-jdk
+
+- name: Insert into elastic-7.x.list
+  shell: echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | sudo tee /etc/apt/sources.list.d/elastic-7.x.list
+
+- name: apt-get update
+  ansible.builtin.apt:
+      update_cache: yes
+
+- name: Install the package "elasticsearch"
+  ansible.builtin.apt:
+   name: elasticsearch
+
+
+
+
+

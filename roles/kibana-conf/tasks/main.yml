@@ -1,0 +1,36 @@
+---
+# tasks file for kibana-conf
+
+- name: stop ES on all nodes
+  ansible.builtin.service:
+    name: elasticsearch
+    state: stopped
+  
+- name: Modify kibana.yml
+  ansible.builtin.template:
+    src: templates/kibana.yml.j2
+    dest: /etc/kibana/kibana.yml
+  when: inventory_hostname in groups['es-cluster-master']
+
+
+- name: copy elastic-kibana conf
+  ansible.builtin.copy:
+    src: /home/ssuvac/ansible/elasticsearch-ca.pem
+    dest: /etc/kibana/
+    owner: kibana
+  become_user: root
+  when: inventory_hostname in groups['es-cluster-master']
+
+- name: restart ES on all nodes
+  ansible.builtin.service:
+    name: elasticsearch
+    state: restarted
+
+- name: restart kibana
+  ansible.builtin.service:
+    name: kibana
+    state: restarted
+  when: inventory_hostname in groups['es-cluster-master']
+  notify: 
+     - restart ES on all nodes
+     - restart kibana

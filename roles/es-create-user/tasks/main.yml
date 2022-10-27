@@ -1,0 +1,58 @@
+---
+# tasks file for es-create-user
+- name: create user
+  shell: "/usr/share/elasticsearch/bin/elasticsearch-users useradd {{ es_cluster_admin_user }} -p {{ es_cluster_admin_pass }} -r superuser"
+
+- name: Check that elastic-stack-ca.p12
+  stat:
+    path: /usr/share/elasticsearch/elastic-stack-ca.p12
+  register: stat_result_stack
+
+- name: create CA
+  shell: '/usr/share/elasticsearch/bin/elasticsearch-certutil ca --pass "" --out /usr/share/elasticsearch/elastic-stack-ca.p12'
+  when: 
+    - inventory_hostname in groups['es-cluster-master']
+    - not stat_result_stack.stat.exists
+
+- name: Check that elastic-certificates.p12
+  stat:
+    path: /usr/share/elasticsearch/elastic-certificates.p12
+  register: stat_result_cert
+
+- name: create CERT 
+  shell: '/usr/share/elasticsearch/bin/elasticsearch-certutil cert --ca elastic-stack-ca.p12 --ca-pass "" --out /usr/share/elasticsearch/elastic-certificates.p12 --pass ""'
+  when: 
+    - inventory_hostname in groups['es-cluster-master'] 
+    - not stat_result_cert.stat.exists
+
+- name: copy remote to local
+  ansible.builtin.fetch:
+    src: /usr/share/elasticsearch/elastic-certificates.p12
+    dest: ~/certificates/
+    flat: yes
+  when: inventory_hostname in groups['es-cluster-master']
+
+- name: Copy local to remote
+  ansible.builtin.copy:
+    src: ~/certificates/elastic-certificates.p12
+    dest: /etc/elasticsearch/
+    owner: elasticsearch
+    group: elasticsearch
+    mode: '0644'
+
+- name: lineinfile
+  ansible.builtin.lineinfile:
+    path: "{{ es_conf_path }}/elasticsearch.yml"
+    line: "{{ item }}"
+    create: yes
+  with_items:
+    - "xpack.security.enabled: true"
+    - "xpack.security.transport.ssl.enabled: true"
+    - "xpack.security.transport.ssl.truststore.path: elastic-certificates.p12"
+    - "xpack.security.transport.ssl.keystore.path: elastic-certificates.p12"
+    - "xpack.security.transport.ssl.client_authentication: required"
+    - "xpack.security.transport.ssl.verification_mode: certificate"
+  notify: 
+     - restart ES on master
+     - restart ES on secondary
+

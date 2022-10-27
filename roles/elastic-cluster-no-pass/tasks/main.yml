@@ -1,0 +1,12 @@
+---
+# tasks file for elastic-config
+- name: Modify elasticsearch.yml for multi node cluster
+  ansible.builtin.template:
+    src: templates/elasticsearch.yml.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+  notify: 
+     - restart ES on master
+     - restart ES on secondary
+
+
+

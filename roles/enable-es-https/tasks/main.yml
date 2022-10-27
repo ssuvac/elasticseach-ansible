@@ -1,0 +1,124 @@
+---
+# tasks file for enable-es-https
+- name: create instance.yml
+  ansible.builtin.file:
+    path: /usr/share/elasticsearch/instance.yml
+    state: touch
+  when: inventory_hostname in groups['es-cluster-master']
+
+- name: modify instance.yml
+  ansible.builtin.template:
+    src: templates/instance.yml.j2
+    dest: /usr/share/elasticsearch/instance.yml
+  when: inventory_hostname in groups['es-cluster-master']
+
+- name: Check that the certificates have not been generated to avoid error
+  stat:
+    path: /usr/share/elasticsearch/certs.zip
+  register: stat_result
+
+- name: Create certificates
+  shell: /usr/share/elasticsearch/bin/elasticsearch-certutil cert --keep-ca-key --pem --in instance.yml --out certs.zip
+  when: 
+    - not stat_result.stat.exists
+    - inventory_hostname in groups['es-cluster-master']
+
+- name: Install the package "unzip"
+  ansible.builtin.apt:
+   name: unzip
+
+- name: Extract certs.zip
+  ansible.builtin.unarchive:
+    src: /usr/share/elasticsearch/certs.zip
+    dest: ~/
+    remote_src: yes
+  when: inventory_hostname in groups['es-cluster-master']
+
+- name: Store certs
+  ansible.builtin.fetch:
+    src: ~/{{ item }}/{{ item }}.crt
+    dest: ~/certificates/
+    flat: yes
+  loop: 
+    - "{{ instances[0] }}"
+    - "{{ instances[1] }}"
+  when: inventory_hostname in groups['es-cluster-master']
+
+- name: Store keys
+  ansible.builtin.fetch:
+    src: ~/{{ item }}/{{ item }}.key
+    dest: ~/certificates/
+    flat: yes
+  loop: 
+    - "{{ instances[0] }}"
+    - "{{ instances[1] }}"
+  when: inventory_hostname in groups['es-cluster-master']
+
+- name: Store ca
+  ansible.builtin.fetch:
+    src: ~/ca/{{ item }}
+    dest: ~/certificates/
+    flat: yes
+  loop: 
+    - "ca.crt"
+    - "ca.key"
+  when: inventory_hostname in groups['es-cluster-master']
+
+- name: Copy file to host
+  copy: 
+    src: ~/certificates/{{ item }}
+    dest: /etc/elasticsearch/
+  with_items:
+    - "{{ instances[0] }}.crt"
+    - "{{ instances[0] }}.key"
+    - "{{ instances[1] }}.key"
+    - "{{ instances[1] }}.crt"
+    - "ca.crt"
+    - "ca.key"
+
+# lineinfile
+- name: lineinfile
+  ansible.builtin.lineinfile:
+    path: "{{ es_conf_path }}/elasticsearch.yml"
+    line: "{{ item }}"
+    create: yes
+  with_items:
+    - "xpack.security.enabled: true"
+    - "xpack.security.http.ssl.enabled: true"
+    - "xpack.security.transport.ssl.enabled: true"
+    - "xpack.security.http.ssl.key: {{ instances[0] }}.key"
+    - "xpack.security.http.ssl.certificate: {{ instances[0] }}.crt"
+    - "xpack.security.http.ssl.certificate_authorities: ca.crt"
+    - "xpack.security.transport.ssl.key: {{ instances[0] }}.key"
+    - "xpack.security.transport.ssl.certificate: {{ instances[0] }}.crt"
+    - "xpack.security.transport.ssl.certificate_authorities: ca.crt"
+  when: inventory_hostname in groups['es-cluster-master']   
+
+- name: lineinfile pt2
+  ansible.builtin.lineinfile:
+    path: "{{ es_conf_path }}/elasticsearch.yml"
+    line: "{{ item }}"
+    create: yes
+  with_items:
+    - "xpack.security.enabled: true"
+    - "xpack.security.http.ssl.enabled: true"
+    - "xpack.security.transport.ssl.enabled: true"
+    - "xpack.security.http.ssl.key: {{ instances[1] }}.key"
+    - "xpack.security.http.ssl.certificate: {{ instances[1] }}.crt"
+    - "xpack.security.http.ssl.certificate_authorities: ca.crt"
+    - "xpack.security.transport.ssl.key: {{ instances[1] }}.key"
+    - "xpack.security.transport.ssl.certificate: {{ instances[1] }}.crt"
+    - "xpack.security.transport.ssl.certificate_authorities: ca.crt"
+  when: inventory_hostname in groups['es-cluster-replicas']   
+
+- name: remove keystore and trustore
+  ansible.builtin.lineinfile:
+    path: "{{ es_conf_path }}/elasticsearch.yml"
+    state: absent
+    regexp: "{{ item }}"
+  with_items:
+    - "xpack.security.transport.ssl.keystore.path: elastic-certificates.p12"
+    - "xpack.security.transport.ssl.truststore.path: elastic-certificates.p12"
+  notify:
+    - restart ES on master
+    - restart ES on secondary

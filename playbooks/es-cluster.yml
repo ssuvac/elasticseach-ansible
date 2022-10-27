@@ -1,0 +1,20 @@
+---
+ - hosts: all
+   become: true
+   
+   roles:
+     - { role: elastic-install, tags: elastic-install}
+     - { role: elastic-single-node, tags: elastic-single-node}
+     - { role: elastic-cluster-no-pass, tags: elastic-cluster-no-pass }
+     - { role: es-create-user, tags: es-create-user }
+     - { role: enable-es-https, tags: es-https }
+     - { role: kibana-install, tags: kibana-install } 
+     - { role: kibana-conf, tags: kibana-conf }
+     - { role: kibana-no-user, tags: kibana-no-user }
+     - { role: kibana-with-user, tags: kibana-with-user }
+     - { role: test, tags: test }
+
+# notes 
+# elastic-cluster nu merge fara es-create-user
+# curl nu se logheaza
+
