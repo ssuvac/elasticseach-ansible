@@ -14,7 +14,3 @@
      - { role: kibana-with-user, tags: kibana-with-user }
      - { role: test, tags: test }
 
-# notes 
-# elastic-cluster nu merge fara es-create-user
-# curl nu se logheaza
-
